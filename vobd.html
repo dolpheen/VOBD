@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Visual OBD</title>
+</head>
+<body>
+
+<!-- Shaders -->
+
+<!-- End Shaders -->
+
+<!-- THREE.js 3D engine -->
+<script src="lib/three.js"></script>
+<script src="lib/OrbitControls.js"></script>
+
+<script src="lib/stats.js"></script>
+
+<!-- GUI for experimenting with values -->
+<script src="lib/DAT.GUI.min.js"></script>
+
+<script src="lib/DolpheenUtils.js"></script>
+<script src="lib/VOBD.js"></script>
+<!-- Main Script-->
+<script type="text/javascript">
+window.addEventListener("load", main, false);
+
+//******************************************************************************
+//  Global variables
+var renderer, scene, camera;  
+var container;
+var clearColor = 0x000000;		// Clear color for buffer
+var near = 500, far = 3000;	// Depth for perspective camera
+var FOV = 45;					// Field of view for perspective camera
+var screenWidth = 0, screenHeight = 0; // Output window dimension. If 0 then default used
+var controls; // For Orbit controls
+var stats;  // FPS statistic
+
+var time,  startTime;
+var shaderUniforms, shaderMaterial, shaderAttributes;
+var sector;
+
+var gui, guiParameters;
+var sectors = [];
+
+//
+var sectorMenu;
+
+function main(){
+	
+	init();
+	initSceneObjects();
+	animate();
+}
+
+
+
+/***************************************************************************************
+ * 			I N I T  F U N C T I O N
+ **************************************************************************************/
+function init(){
+	
+	/***************************** S E T - U P Window **********************************/
+	// Window attributes
+	screenWidth = (screenWidth == 0 ? window.innerWidth : screenWidth); // Canvas width
+	screenHeight = (screenHeight == 0 ? window.innerHeight : screenHeight);	// Canvas height
+	
+	/* *************************** S E T - U P Renderer ********************************/	
+	// Create THREE.js WebGL renderer	
+	renderer = new THREE.WebGLRenderer({antialias:true});
+    screenWidth = 1280 * 0.6;
+    screenHeight = screenWidth / 1.6;
+	renderer.setSize(screenWidth, screenHeight);
+
+    // must enable shadows on the renderer
+    renderer.shadowMapEnabled = true;
+    renderer.shadowMapType = THREE.PCFSoftShadowMap;
+
+	// attach div element to variable to contain the renderer
+	container = document.getElementById("ThreeJS");
+	container.appendChild(renderer.domElement);
+	
+	scene = new THREE.Scene();
+	/****************************** S E T - U P Camera *********************************/
+	// camera attributes	
+	var aspect = screenWidth / screenHeight;
+	camera = new THREE.PerspectiveCamera(FOV, aspect, near, far);
+	camera.position.set (0,0,950); // Camera position in space XYZ
+	camera.lookAt(scene.position);
+	scene.add (camera);
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    stats = new Stats();
+    stats.domElement.style.position = 'absolute';
+    stats.domElement.style.bottom = '0px';
+    stats.domElement.style.zIndex = 100;
+    container.appendChild( stats.domElement);
+}
+
+/*****************************************************************************************
+ * 		Here we add our scene objects (Meshes, Lights, etc)
+ *****************************************************************************************/
+function initSceneObjects(){
+	renderer.setClearColor(clearColor, 1.0);
+	renderer.clear();
+
+    sectorMenu = new THREE.Object3D();
+    var sectorMenuMeshes = [];
+
+    for( var i = 0; i < 5; i++){
+        sectorMenuMeshes[i] = new VOBD.MenuSector({
+            innerRadius : 100,
+            innerRadiusMorph1 : 280,
+            outerRadius : 390,
+            angle : 78,
+            angleMorph: 120,
+            segments : 30,
+            viewPortWidth : screenWidth,
+            viewPortHeight : screenHeight
+        });
+
+        sectorMenuMeshes[i].mesh.rotation.z = DU.ang2Rad(72 * i);
+        sectorMenuMeshes[i].mesh.castShadow = true;
+        sectorMenu.add(sectorMenuMeshes[i].mesh);
+    }
+    sectorMenu.rotation.z = DU.ang2Rad(52);
+    scene.add(sectorMenu);
+    //Trying to add plane sector
+    var shadowSectorMaterial = new THREE.MeshPhongMaterial({
+        color: 0x000000,
+        transparent: true,
+        opacity: 0.6
+    });
+    var shadowSectorGeometry = new VOBD.Geometry.Sector( 100,
+            370,
+            65,
+            30);
+    var shadowSector = new THREE.Mesh(shadowSectorGeometry, shadowSectorMaterial);
+    shadowSector.position.z = - 50;
+    shadowSector.rotation.z = DU.ang2Rad(53);
+    //shadowSector.castShadow = true;
+    //scene.add(shadowSector);
+
+    var sphereGeometry = new THREE.SphereGeometry( 180, 50, 50);
+    var sphereGeometryMorph0 = new THREE.SphereGeometry( 315, 50, 50);
+    sphereGeometry.morphTargets.push( {name: "target0", vertices: sphereGeometryMorph0.vertices });
+
+    var sphereMaterial = new THREE.MeshPhongMaterial({
+        color: 0xD01000,
+        specular: 0xD01000,
+        shininess: 6,
+        transparent: false,
+        opacity: 1.0,
+        depthTest: true,
+        morphTargets: true,
+        index0AttributeName: "position"
+    });
+
+    var sphereMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    sphereMesh.position.z = -135;
+    sphereMesh.morphTargetInfluences[0] = 0.0;
+    scene.add(sphereMesh);
+
+
+    //background texture
+    var bgGeometry = new THREE.PlaneGeometry(1280, 800);
+    var bgMaterial = new THREE.MeshPhongMaterial( { color : 0x100000});
+    var bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
+    bgMesh.scale.multiplyScalar(1.1);
+    bgMesh.position.z = -100;
+    bgMesh.receiveShadow = true;
+    scene.add(bgMesh);
+
+    var directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    directionalLight.position.set(-100,0.5,250);
+    directionalLight.castShadow = true;
+    directionalLight.shadowCameraVisible = false;
+    directionalLight.shadowDarkness = 1.0;
+    scene.add(directionalLight);
+
+    var ambientLight = new THREE.AmbientLight(0x300000);
+    scene.add(ambientLight);
+
+    startTime = Date.now();
+
+    /////////
+    // GUI //
+    /////////
+
+    gui = new dat.GUI();
+
+    guiParameters = {
+        color: 0,
+        position: 0,
+        alpha: 0,
+        alphaThr:0,
+        r: 0,
+        g: 0,
+        b: 0,
+        morph1: 0,
+        morphInner: 0,
+        morphWidth: 0
+    };
+    var top = gui.addFolder('Sector attributes');
+    var wGUI = top.add( guiParameters, 'color' ).min(0.0).max(1.0).step(0.01).name("color").listen();
+    wGUI.onChange( function(value) {
+        sectorMenuMeshes[0].mesh.material.uniforms["uColMul"].value = value;
+        //shaderMaterial.needsUpdate = true;
+    });
+
+    var zGUI = top.add( guiParameters, 'position' ).min(0.0).max(1.0).step(0.01).name("step").listen();
+    zGUI.onChange( function(value) {
+        sectorMenuMeshes[0].mesh.material.uniforms["uStepMul"].value = value;
+        //shaderMaterial.needsUpdate = true;
+    });
+
+    var aGUI = top.add( guiParameters, 'alpha' ).min(0.0).max(1.0).step(0.01).name("alpha").listen();
+    aGUI.onChange( function(value) {
+        sectorMenuMeshes[0].mesh.material.uniforms["uAlpha"].value = value;
+
+    });
+
+    var athrGUI = top.add( guiParameters, 'alphaThr' ).min(0.0).max(1.0).step(0.01).name("alphaThr").listen();
+    athrGUI.onChange( function(value) {
+        sectorMenuMeshes[0].mesh.material.uniforms["uAlphaThr"].value = value;
+
+    });
+
+    var rGUI = top.add( guiParameters, 'r' ).min(0.0).max(1.0).step(0.01).name("r").listen();
+    rGUI.onChange( function(value) {
+        (sectorMenuMeshes[0].mesh.material.uniforms["uGlowColor"].value).x = value;
+    });
+
+    var gGUI = top.add( guiParameters, 'g' ).min(0.0).max(1.0).step(0.01).name("g").listen();
+    gGUI.onChange( function(value) {
+        (sectorMenuMeshes[0].mesh.material.uniforms["uGlowColor"].value).y = value;
+    });
+
+    var bGUI = top.add( guiParameters, 'b' ).min(0.0).max(1.0).step(0.01).name("b").listen();
+    bGUI.onChange( function(value) {
+        (sectorMenuMeshes[0].mesh.material.uniforms["uGlowColor"].value).z = value;
+    });
+
+    var morph1GUI = top.add( guiParameters, 'morph1' ).min(0.0).max(1.0).step(0.01).name("morph1").listen();
+    morph1GUI.onChange( function(value) {
+        sectorMenuMeshes[0].mesh.morphTargetInfluences[0] = value;
+    });
+
+    var morphInnerGUI = top.add( guiParameters, 'morphInner' ).min(0.0).max(1.0).step(0.01).name("morphInner").listen();
+    morphInnerGUI.onChange( function(value) {
+        for( var i = 0; i < 5; i++){
+            sectorMenuMeshes[i].mesh.morphTargetInfluences[1] = value;
+            sectorMenuMeshes[i].mesh.material.uniforms["uMorph"].value = value;
+        }
+        sphereMesh.morphTargetInfluences[0] = value;
+    });
+
+    var morphWidthGUI = top.add( guiParameters, 'morphWidth' ).min(0.0).max(1.0).step(0.01).name("morphWidth").listen();
+    morphWidthGUI.onChange( function(value) {
+        sectorMenuMeshes[0].mesh.morphTargetInfluences[2] = value;
+    });
+
+
+
+    top.open();
+}
+
+/*****************************************************************************************/
+/******************************* A N I M A T E   F U N C T I O N *************************/
+/********************************* should be called at 60 fps )) *************************/ 
+function animate() 
+{
+    requestAnimationFrame( animate );
+	render();		
+	update();
+}
+
+/***************************************************************************************/
+/******************************* R E N D E R   F U N C T I O N *************************/
+/***************************************************************************************/
+function render() 
+{	
+	renderer.render( scene, camera );
+}
+
+/****************************** U P D A T E   C O N T E X T ****************************/
+function update()
+{
+    controls.update();
+    stats.update();
+    time = Date.now() - startTime;
+    //sectorMenu.rotation.z +=  0.005;
+    //shaderMaterial.uniforms.uTime.value = time / 1000;
+    //sectorMesh.rotation.z += 0.01;
+}
+
+
+
+</script>
+
+<div id="ThreeJS" style="z-index: 0; position: absolute; left:0px; top:0px"></div>
+
+</body>
+</html>
