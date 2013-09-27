@@ -27,7 +27,11 @@ window.addEventListener("load", main, false);
 
 //******************************************************************************
 //  Global variables
-var renderer, scene, camera;  
+var renderer,
+    scene,
+    camera,
+    projector;
+
 var container;
 var clearColor = 0x000000;		// Clear color for buffer
 var near = 500, far = 3000;	// Depth for perspective camera
@@ -42,9 +46,10 @@ var sector;
 
 var gui, guiParameters;
 var sectors = [];
+var mouse = new THREE.Vector2();
 
-//
-var sectorMenu;
+var mainMenu;
+var menuSector = [];
 
 function main(){
 	
@@ -96,6 +101,52 @@ function init(){
     stats.domElement.style.bottom = '0px';
     stats.domElement.style.zIndex = 100;
     container.appendChild( stats.domElement);
+
+    projector = new THREE.Projector();
+
+    // Mouse events
+    document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+    document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+    document.addEventListener( 'mouseup', onDocumentMouseUp, false );
+    document.addEventListener( 'keydown', onDocumentKeyDown, false );
+}
+
+function onDocumentMouseMove( event ) {
+
+    event.preventDefault();
+    /*mouse.x = event.clientX;
+    mouse.y = event.clientY;*/
+
+    mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+    mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+    var vector = new THREE.Vector3( mouse.x, mouse.y, 0.5 );
+    projector.unprojectVector( vector, camera );
+
+    var raycaster = new THREE.Raycaster( camera.position, vector.sub( camera.position ).normalize() );
+    var intersects = raycaster.intersectObject( menuSector[1] );
+    if ( intersects.length > 0 ) {
+        console.log("Intersect!");
+    }
+
+}
+
+function onDocumentMouseDown( event ) {
+
+    event.preventDefault();
+
+}
+
+function onDocumentMouseUp( event ) {
+
+    event.preventDefault();
+
+}
+
+function onDocumentKeyDown( event ) {
+
+    event.preventDefault();
+    console.log(event);
 }
 
 /*****************************************************************************************
@@ -105,11 +156,11 @@ function initSceneObjects(){
 	renderer.setClearColor(clearColor, 1.0);
 	renderer.clear();
 
-    sectorMenu = new THREE.Object3D();
-    var sectorMenuMeshes = [];
+    mainMenu = new THREE.Object3D();
+
 
     for( var i = 0; i < 5; i++){
-        sectorMenuMeshes[i] = new VOBD.MenuSector({
+        menuSector[i] = new VOBD.SectorMesh({
             innerRadius : 100,
             innerRadiusMorph1 : 280,
             outerRadius : 390,
@@ -120,12 +171,13 @@ function initSceneObjects(){
             viewPortHeight : screenHeight
         });
 
-        sectorMenuMeshes[i].mesh.rotation.z = DU.ang2Rad(72 * i);
-        sectorMenuMeshes[i].mesh.castShadow = true;
-        sectorMenu.add(sectorMenuMeshes[i].mesh);
+        menuSector[i].rotation.z = DU.ang2Rad(72 * i);
+        menuSector[i].castShadow = true;
+        mainMenu.add(menuSector[i]);
     }
-    sectorMenu.rotation.z = DU.ang2Rad(52);
-    scene.add(sectorMenu);
+    mainMenu.rotation.z = DU.ang2Rad(52);
+    scene.add(mainMenu);
+
     //Trying to add plane sector
     var shadowSectorMaterial = new THREE.MeshPhongMaterial({
         color: 0x000000,
@@ -165,7 +217,7 @@ function initSceneObjects(){
 
     //background texture
     var bgGeometry = new THREE.PlaneGeometry(1280, 800);
-    var bgMaterial = new THREE.MeshPhongMaterial( { color : 0x100000});
+    var bgMaterial = new THREE.MeshPhongMaterial( { color : 0x000000});
     var bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
     bgMesh.scale.multiplyScalar(1.1);
     bgMesh.position.z = -100;
@@ -173,13 +225,13 @@ function initSceneObjects(){
     scene.add(bgMesh);
 
     var directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
-    directionalLight.position.set(-100,0.5,250);
+    directionalLight.position.set(-100,70,250);
     directionalLight.castShadow = true;
     directionalLight.shadowCameraVisible = false;
     directionalLight.shadowDarkness = 1.0;
     scene.add(directionalLight);
 
-    var ambientLight = new THREE.AmbientLight(0x300000);
+    var ambientLight = new THREE.AmbientLight(0x300005);
     scene.add(ambientLight);
 
     startTime = Date.now();
@@ -205,60 +257,60 @@ function initSceneObjects(){
     var top = gui.addFolder('Sector attributes');
     var wGUI = top.add( guiParameters, 'color' ).min(0.0).max(1.0).step(0.01).name("color").listen();
     wGUI.onChange( function(value) {
-        sectorMenuMeshes[0].mesh.material.uniforms["uColMul"].value = value;
+        menuSector[0].material.uniforms["uColMul"].value = value;
         //shaderMaterial.needsUpdate = true;
     });
 
     var zGUI = top.add( guiParameters, 'position' ).min(0.0).max(1.0).step(0.01).name("step").listen();
     zGUI.onChange( function(value) {
-        sectorMenuMeshes[0].mesh.material.uniforms["uStepMul"].value = value;
+        menuSector[0].material.uniforms["uStepMul"].value = value;
         //shaderMaterial.needsUpdate = true;
     });
 
     var aGUI = top.add( guiParameters, 'alpha' ).min(0.0).max(1.0).step(0.01).name("alpha").listen();
     aGUI.onChange( function(value) {
-        sectorMenuMeshes[0].mesh.material.uniforms["uAlpha"].value = value;
+        menuSector[0].material.uniforms["uAlpha"].value = value;
 
     });
 
     var athrGUI = top.add( guiParameters, 'alphaThr' ).min(0.0).max(1.0).step(0.01).name("alphaThr").listen();
     athrGUI.onChange( function(value) {
-        sectorMenuMeshes[0].mesh.material.uniforms["uAlphaThr"].value = value;
+        menuSector[0].material.uniforms["uAlphaThr"].value = value;
 
     });
 
     var rGUI = top.add( guiParameters, 'r' ).min(0.0).max(1.0).step(0.01).name("r").listen();
     rGUI.onChange( function(value) {
-        (sectorMenuMeshes[0].mesh.material.uniforms["uGlowColor"].value).x = value;
+        (menuSector[0].material.uniforms["uGlowColor"].value).x = value;
     });
 
     var gGUI = top.add( guiParameters, 'g' ).min(0.0).max(1.0).step(0.01).name("g").listen();
     gGUI.onChange( function(value) {
-        (sectorMenuMeshes[0].mesh.material.uniforms["uGlowColor"].value).y = value;
+        (menuSector[0].material.uniforms["uGlowColor"].value).y = value;
     });
 
     var bGUI = top.add( guiParameters, 'b' ).min(0.0).max(1.0).step(0.01).name("b").listen();
     bGUI.onChange( function(value) {
-        (sectorMenuMeshes[0].mesh.material.uniforms["uGlowColor"].value).z = value;
+        (menuSector[0].material.uniforms["uGlowColor"].value).z = value;
     });
 
     var morph1GUI = top.add( guiParameters, 'morph1' ).min(0.0).max(1.0).step(0.01).name("morph1").listen();
     morph1GUI.onChange( function(value) {
-        sectorMenuMeshes[0].mesh.morphTargetInfluences[0] = value;
+        menuSector[0].morphTargetInfluences[0] = value;
     });
 
     var morphInnerGUI = top.add( guiParameters, 'morphInner' ).min(0.0).max(1.0).step(0.01).name("morphInner").listen();
     morphInnerGUI.onChange( function(value) {
         for( var i = 0; i < 5; i++){
-            sectorMenuMeshes[i].mesh.morphTargetInfluences[1] = value;
-            sectorMenuMeshes[i].mesh.material.uniforms["uMorph"].value = value;
+            menuSector[i].morphTargetInfluences[1] = value;
+            menuSector[i].material.uniforms["uMorph"].value = value;
         }
         sphereMesh.morphTargetInfluences[0] = value;
     });
 
     var morphWidthGUI = top.add( guiParameters, 'morphWidth' ).min(0.0).max(1.0).step(0.01).name("morphWidth").listen();
     morphWidthGUI.onChange( function(value) {
-        sectorMenuMeshes[0].mesh.morphTargetInfluences[2] = value;
+        menuSector[0].morphTargetInfluences[2] = value;
     });
 
 
@@ -290,7 +342,7 @@ function update()
     controls.update();
     stats.update();
     time = Date.now() - startTime;
-    //sectorMenu.rotation.z +=  0.005;
+    //mainMenu.rotation.z +=  0.005;
     //shaderMaterial.uniforms.uTime.value = time / 1000;
     //sectorMesh.rotation.z += 0.01;
 }
