@@ -17,7 +17,7 @@
 <script src="lib/stats.js"></script>
 
 <!-- GUI for experimenting with values -->
-<script src="lib/DAT.GUI.min.js"></script>
+<script src="lib/dat.gui.js"></script>
 
 <script src="lib/DolpheenUtils.js"></script>
 <script src="lib/VOBD.js"></script>
@@ -114,19 +114,18 @@ function init(){
 function onDocumentMouseMove( event ) {
 
     event.preventDefault();
-    /*mouse.x = event.clientX;
-    mouse.y = event.clientY;*/
 
-    mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
-    mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+    mouse.x = ( event.clientX / screenWidth ) * 2 - 1;
+    mouse.y = - ( event.clientY / screenHeight ) * 2 + 1;
 
     var vector = new THREE.Vector3( mouse.x, mouse.y, 0.5 );
     projector.unprojectVector( vector, camera );
 
     var raycaster = new THREE.Raycaster( camera.position, vector.sub( camera.position ).normalize() );
-    var intersects = raycaster.intersectObject( menuSector[1] );
-    if ( intersects.length > 0 ) {
-        console.log("Intersect!");
+    var intersects = raycaster.intersectObjects( mainMenu.meshes.children );
+    if ( intersects.length == 1 ) {
+        //console.log(intersects[0].object.sectorNumber);
+        mainMenu.selectedSector = intersects[0].object.sectorNumber;
     }
 
 }
@@ -146,7 +145,10 @@ function onDocumentMouseUp( event ) {
 function onDocumentKeyDown( event ) {
 
     event.preventDefault();
-    console.log(event);
+    switch(event.keyCode){
+        case 49 : alert('1!');
+                  break;
+    }
 }
 
 /*****************************************************************************************
@@ -156,27 +158,8 @@ function initSceneObjects(){
 	renderer.setClearColor(clearColor, 1.0);
 	renderer.clear();
 
-    mainMenu = new THREE.Object3D();
-
-
-    for( var i = 0; i < 5; i++){
-        menuSector[i] = new VOBD.SectorMesh({
-            innerRadius : 100,
-            innerRadiusMorph1 : 280,
-            outerRadius : 390,
-            angle : 78,
-            angleMorph: 120,
-            segments : 30,
-            viewPortWidth : screenWidth,
-            viewPortHeight : screenHeight
-        });
-
-        menuSector[i].rotation.z = DU.ang2Rad(72 * i);
-        menuSector[i].castShadow = true;
-        mainMenu.add(menuSector[i]);
-    }
-    mainMenu.rotation.z = DU.ang2Rad(52);
-    scene.add(mainMenu);
+    mainMenu = new VOBD.SectorMenu({});
+    scene.add(mainMenu.meshes);
 
     //Trying to add plane sector
     var shadowSectorMaterial = new THREE.MeshPhongMaterial({
@@ -257,65 +240,59 @@ function initSceneObjects(){
     var top = gui.addFolder('Sector attributes');
     var wGUI = top.add( guiParameters, 'color' ).min(0.0).max(1.0).step(0.01).name("color").listen();
     wGUI.onChange( function(value) {
-        menuSector[0].material.uniforms["uColMul"].value = value;
+        mainMenu.meshes.children[0].material.uniforms["uColMul"].value = value;
         //shaderMaterial.needsUpdate = true;
     });
 
     var zGUI = top.add( guiParameters, 'position' ).min(0.0).max(1.0).step(0.01).name("step").listen();
     zGUI.onChange( function(value) {
-        menuSector[0].material.uniforms["uStepMul"].value = value;
+        mainMenu.meshes.children[0].material.uniforms["uStepMul"].value = value;
         //shaderMaterial.needsUpdate = true;
     });
 
     var aGUI = top.add( guiParameters, 'alpha' ).min(0.0).max(1.0).step(0.01).name("alpha").listen();
     aGUI.onChange( function(value) {
-        menuSector[0].material.uniforms["uAlpha"].value = value;
+        mainMenu.meshes.children[0].material.uniforms["uAlpha"].value = value;
 
     });
 
     var athrGUI = top.add( guiParameters, 'alphaThr' ).min(0.0).max(1.0).step(0.01).name("alphaThr").listen();
     athrGUI.onChange( function(value) {
-        menuSector[0].material.uniforms["uAlphaThr"].value = value;
+        mainMenu.meshes.children[0].material.uniforms["uAlphaThr"].value = value;
 
     });
 
     var rGUI = top.add( guiParameters, 'r' ).min(0.0).max(1.0).step(0.01).name("r").listen();
     rGUI.onChange( function(value) {
-        (menuSector[0].material.uniforms["uGlowColor"].value).x = value;
+        (mainMenu.meshes.children[0].material.uniforms["uGlowColor"].value).x = value;
     });
 
     var gGUI = top.add( guiParameters, 'g' ).min(0.0).max(1.0).step(0.01).name("g").listen();
     gGUI.onChange( function(value) {
-        (menuSector[0].material.uniforms["uGlowColor"].value).y = value;
+        (mainMenu.meshes.children[0].material.uniforms["uGlowColor"].value).y = value;
     });
 
     var bGUI = top.add( guiParameters, 'b' ).min(0.0).max(1.0).step(0.01).name("b").listen();
     bGUI.onChange( function(value) {
-        (menuSector[0].material.uniforms["uGlowColor"].value).z = value;
+        (mainMenu.meshes.children[0].material.uniforms["uGlowColor"].value).z = value;
     });
 
-    var morph1GUI = top.add( guiParameters, 'morph1' ).min(0.0).max(1.0).step(0.01).name("morph1").listen();
-    morph1GUI.onChange( function(value) {
-        menuSector[0].morphTargetInfluences[0] = value;
-    });
 
     var morphInnerGUI = top.add( guiParameters, 'morphInner' ).min(0.0).max(1.0).step(0.01).name("morphInner").listen();
     morphInnerGUI.onChange( function(value) {
         for( var i = 0; i < 5; i++){
-            menuSector[i].morphTargetInfluences[1] = value;
-            menuSector[i].material.uniforms["uMorph"].value = value;
+            mainMenu.meshes.children[i].morphTargetInfluences[0] = value;
+            mainMenu.meshes.children[i].material.uniforms["uMorph"].value = value;
         }
         sphereMesh.morphTargetInfluences[0] = value;
     });
 
     var morphWidthGUI = top.add( guiParameters, 'morphWidth' ).min(0.0).max(1.0).step(0.01).name("morphWidth").listen();
     morphWidthGUI.onChange( function(value) {
-        menuSector[0].morphTargetInfluences[2] = value;
+        menuSector[0].morphTargetInfluences[1] = value;
     });
 
-
-
-    top.open();
+    //top.open();
 }
 
 /*****************************************************************************************/
@@ -342,6 +319,7 @@ function update()
     controls.update();
     stats.update();
     time = Date.now() - startTime;
+    mainMenu.update();
     //mainMenu.rotation.z +=  0.005;
     //shaderMaterial.uniforms.uTime.value = time / 1000;
     //sectorMesh.rotation.z += 0.01;
