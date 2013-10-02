@@ -17,7 +17,7 @@
 <script src="lib/stats.js"></script>
 
 <!-- GUI for experimenting with values -->
-<script src="lib/dat.gui.js"></script>
+<script src="lib/DAT.GUI.min.js"></script>
 
 <script src="lib/DolpheenUtils.js"></script>
 <script src="lib/VOBD.js"></script>
@@ -241,7 +241,7 @@ function initSceneObjects(){
     var wGUI = top.add( guiParameters, 'color' ).min(0.0).max(1.0).step(0.01).name("color").listen();
     wGUI.onChange( function(value) {
         mainMenu.meshes.children[0].material.uniforms["uColMul"].value = value;
-        //shaderMaterial.needsUpdate = true;
+
     });
 
     var zGUI = top.add( guiParameters, 'position' ).min(0.0).max(1.0).step(0.01).name("step").listen();
@@ -319,7 +319,9 @@ function update()
     controls.update();
     stats.update();
     time = Date.now() - startTime;
-    mainMenu.update();
+    startTime = Date.now() ;
+    mainMenu.update(time);
+
     //mainMenu.rotation.z +=  0.005;
     //shaderMaterial.uniforms.uTime.value = time / 1000;
     //sectorMesh.rotation.z += 0.01;
