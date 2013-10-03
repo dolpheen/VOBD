@@ -20,7 +20,14 @@
 <script src="lib/DAT.GUI.min.js"></script>
 
 <script src="lib/DolpheenUtils.js"></script>
+
+<!-- VOBD Scripts-->
 <script src="lib/VOBD.js"></script>
+<script src="lib/VOBDShader.js"></script>
+<script src="lib/VOBDGeometry.js"></script>
+<script src="lib/VOBDUpdateItem.js"></script>
+<script src="lib/VOBDSectorMenu.js"></script>
+
 <!-- Main Script-->
 <script type="text/javascript">
 window.addEventListener("load", main, false);
@@ -128,6 +135,12 @@ function onDocumentMouseMove( event ) {
         mainMenu.selectedSector = intersects[0].object.sectorNumber;
     }
 
+    if ( intersects.length == 0 ) {
+        //console.log(intersects[0].object.sectorNumber);
+        mainMenu.selectedSector = 0;
+    }
+
+
 }
 
 function onDocumentMouseDown( event ) {
@@ -174,31 +187,10 @@ function initSceneObjects(){
     var shadowSector = new THREE.Mesh(shadowSectorGeometry, shadowSectorMaterial);
     shadowSector.position.z = - 50;
     shadowSector.rotation.z = DU.ang2Rad(53);
-    //shadowSector.castShadow = true;
-    //scene.add(shadowSector);
 
-    var sphereGeometry = new THREE.SphereGeometry( 180, 50, 50);
-    var sphereGeometryMorph0 = new THREE.SphereGeometry( 315, 50, 50);
-    sphereGeometry.morphTargets.push( {name: "target0", vertices: sphereGeometryMorph0.vertices });
-
-    var sphereMaterial = new THREE.MeshPhongMaterial({
-        color: 0xD01000,
-        specular: 0xD01000,
-        shininess: 6,
-        transparent: false,
-        opacity: 1.0,
-        depthTest: true,
-        morphTargets: true,
-        index0AttributeName: "position"
-    });
-
-    var sphereMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
-    sphereMesh.position.z = -135;
-    sphereMesh.morphTargetInfluences[0] = 0.0;
-    scene.add(sphereMesh);
-
-
-    //background texture
+    /*
+        Background texture
+    */
     var bgGeometry = new THREE.PlaneGeometry(1280, 800);
     var bgMaterial = new THREE.MeshPhongMaterial( { color : 0x000000});
     var bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
@@ -207,6 +199,9 @@ function initSceneObjects(){
     bgMesh.receiveShadow = true;
     scene.add(bgMesh);
 
+    /*
+        Light
+     */
     var directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
     directionalLight.position.set(-100,70,250);
     directionalLight.castShadow = true;
@@ -217,12 +212,12 @@ function initSceneObjects(){
     var ambientLight = new THREE.AmbientLight(0x300005);
     scene.add(ambientLight);
 
+
     startTime = Date.now();
 
-    /////////
-    // GUI //
-    /////////
-
+   /*
+        GUI
+    */
     gui = new dat.GUI();
 
     guiParameters = {
@@ -284,12 +279,12 @@ function initSceneObjects(){
             mainMenu.meshes.children[i].morphTargetInfluences[0] = value;
             mainMenu.meshes.children[i].material.uniforms["uMorph"].value = value;
         }
-        sphereMesh.morphTargetInfluences[0] = value;
+        mainMenu.meshes.children[5].morphTargetInfluences[0] = value;
     });
 
     var morphWidthGUI = top.add( guiParameters, 'morphWidth' ).min(0.0).max(1.0).step(0.01).name("morphWidth").listen();
     morphWidthGUI.onChange( function(value) {
-        menuSector[0].morphTargetInfluences[1] = value;
+        mainMenu.meshes.children[0].morphTargetInfluences[1] = value;
     });
 
     //top.open();
